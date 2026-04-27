@@ -38,6 +38,7 @@ library
         Anthropic.Error
         Anthropic.Messages
         Anthropic.Messages.Streaming
+        Anthropic.Helpers.Tool
         Anthropic.Messages.Batches
         Anthropic.Models
         Anthropic.Files
