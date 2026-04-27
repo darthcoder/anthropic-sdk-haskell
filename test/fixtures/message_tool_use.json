@@ -1,0 +1,25 @@
+{
+  "id": "msg_01AbCdEfGhIjKlMnOpQrStUv",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01AbCdEfGh",
+      "name": "get_weather",
+      "input": {
+        "location": "San Francisco",
+        "unit": "celsius"
+      }
+    }
+  ],
+  "model": "claude-3-5-sonnet-20241022",
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 82,
+    "output_tokens": 23,
+    "cache_creation_input_tokens": null,
+    "cache_read_input_tokens": null
+  }
+}

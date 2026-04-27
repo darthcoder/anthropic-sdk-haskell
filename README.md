@@ -6,12 +6,12 @@ A Haskell client for the [Anthropic API](https://docs.anthropic.com/), written t
 
 ## Status
 
-Early development. The module structure is in place; implementations are being filled in.
+Early development. Core Messages API is implemented and tested.
 
 | Feature | Status |
 |---|---|
-| Messages | In progress |
-| Streaming (SSE) | In progress |
+| Messages | ✅ Done |
+| Streaming (SSE) | Planned |
 | Tool use | Planned |
 | Batches | Planned |
 | Token counting | Planned |
@@ -73,13 +73,35 @@ import Anthropic.Types
 
 main :: IO ()
 main = do
-    client <- mkClient defaultConfig  -- reads ANTHROPIC_API_KEY from env
-    response <- sendMessage client MessageRequest
-        { model    = Claude3_5Sonnet
-        , messages = [userMessage "Hello, Claude!"]
-        , maxTokens = 1024
-        }
-    print response
+    client <- fromEnv  -- reads ANTHROPIC_API_KEY from environment
+    let req = MessageRequest
+            { reqModel         = claude3_5Sonnet
+            , reqMessages      = [userMessage "Hello, Claude!"]
+            , reqMaxTokens     = 1024
+            , reqSystem        = Nothing
+            , reqStopSequences = Nothing
+            , reqTemperature   = Nothing
+            , reqTools         = Nothing
+            , reqToolChoice    = Nothing
+            }
+    msg <- sendMessage client req
+    mapM_ print (msgContent msg)
+```
+
+## Testing
+
+Tests are fixture-based — no API calls, no rate limits, runs in milliseconds.
+
+```bash
+make test
+```
+
+Fixtures in `test/fixtures/` are generated using [grievous-mcp](https://pypi.org/project/grievous-mcp/), a hallucination engine that produces realistic Anthropic API response shapes via the API. To regenerate them:
+
+```bash
+pip install grievous-mcp
+export ANTHROPIC_API_KEY=sk-ant-...
+make fixtures
 ```
 
 ## Dependency Notes
@@ -87,10 +109,8 @@ main = do
 | Concern | Library |
 |---|---|
 | HTTP | `http-client` + `http-client-tls` |
-| Streaming (SSE) | `http-conduit` + `conduit` |
-| JSON | `aeson` (incremental via `attoparsec`) |
+| JSON | `aeson` |
 | Retry | `retry` (exponential backoff) |
-| Async | `async` |
 
 ## Contributing
 

@@ -20,6 +20,8 @@ module Anthropic.Types
     , ToolChoice (..)
       -- * Messages
     , MessageParam (..)
+    , userMessage
+    , assistantMessage
     , MessageRequest (..)
     , Message (..)
     ) where

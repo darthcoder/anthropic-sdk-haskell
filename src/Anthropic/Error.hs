@@ -6,7 +6,6 @@ module Anthropic.Error
 
 import Control.Exception  (Exception)
 import Data.Aeson
-import Data.Aeson.Types   (Parser)
 import Data.ByteString.Lazy (ByteString)
 import Data.Text          (Text)
 import GHC.Generics       (Generic)

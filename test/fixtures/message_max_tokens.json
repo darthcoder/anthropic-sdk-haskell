@@ -1,0 +1,20 @@
+{
+  "id": "msg_01AbCdEfGhIjKlMnOpQrStUv",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "The story begins with"
+    }
+  ],
+  "model": "claude-3-5-sonnet-20241022",
+  "stop_reason": "max_tokens",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 15,
+    "output_tokens": 5,
+    "cache_creation_input_tokens": null,
+    "cache_read_input_tokens": null
+  }
+}

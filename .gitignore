@@ -5,4 +5,5 @@ dist-newstyle/
 *.hi
 *.o
 .ghc.environment.*
+test/fixtures/__pycache__/
 *.bak
