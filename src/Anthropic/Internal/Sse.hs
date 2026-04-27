@@ -21,7 +21,7 @@ import Data.Maybe                  (mapMaybe)
 -- the @"type"@ field inside the JSON payload.
 parseChunk :: FromJSON a => BC.ByteString -> BC.ByteString -> (BC.ByteString, [a])
 parseChunk leftover chunk =
-    let buf    = leftover <> chunk
+    let buf    = normalize (leftover <> chunk)
         blocks = splitOnBlankLine buf
     in case reverse blocks of
         []           -> (BC.empty, [])
@@ -31,6 +31,10 @@ parseChunk leftover chunk =
 
 -- ---------------------------------------------------------------------------
 -- Helpers
+
+-- | Normalise CRLF to LF so the rest of the parser only sees @\n@.
+normalize :: BC.ByteString -> BC.ByteString
+normalize = BC.intercalate "\n" . BC.splitWith (== '\r')
 
 -- | Split on @\n\n@, keeping the separator consumed.
 splitOnBlankLine :: BC.ByteString -> [BC.ByteString]
