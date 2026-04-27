@@ -49,7 +49,7 @@ runMock = do
 
 req :: MessageRequest
 req = MessageRequest
-    { reqModel         = claude3_5Sonnet
+    { reqModel         = claudeSonnet4
     , reqMessages      = [userMessage "Say hello in one sentence."]
     , reqMaxTokens     = 256
     , reqSystem        = Nothing

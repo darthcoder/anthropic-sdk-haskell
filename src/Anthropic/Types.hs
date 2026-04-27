@@ -56,9 +56,9 @@ claude3_5Sonnet = Model "claude-3-5-sonnet-20241022"
 claude3_5Haiku  = Model "claude-3-5-haiku-20241022"
 
 claudeOpus4, claudeSonnet4, claudeHaiku4 :: Model
-claudeOpus4   = Model "claude-opus-4-5"
-claudeSonnet4 = Model "claude-sonnet-4-5"
-claudeHaiku4  = Model "claude-haiku-4-5"
+claudeOpus4   = Model "claude-opus-4-7"
+claudeSonnet4 = Model "claude-sonnet-4-6"
+claudeHaiku4  = Model "claude-haiku-4-5-20251001"
 
 -- ---------------------------------------------------------------------------
 -- Role
