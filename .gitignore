@@ -1,5 +1,8 @@
+.env
+.direnv/
 typescript-sdk/
 dist-newstyle/
 *.hi
 *.o
 .ghc.environment.*
+*.bak

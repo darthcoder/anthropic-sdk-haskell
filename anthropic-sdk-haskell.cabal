@@ -28,7 +28,7 @@ common deps
         http-client-tls   >=0.3  && <0.4,
         http-conduit      >=2.3  && <2.4,
         conduit           >=1.3  && <1.4,
-        retry             >=0.9  && <0.10,
+        retry             >=0.9  && <1,
         async             >=2.2  && <2.3,
         containers        >=0.6  && <0.9,
         transformers      >=0.6  && <0.7,
@@ -59,25 +59,22 @@ library
     default-extensions:
         OverloadedStrings
         DeriveGeneric
-        DerivingStrategies
-        GeneralizedNewtypeDeriving
-        RecordWildCards
+        LambdaCase
+        ScopedTypeVariables
 
 test-suite anthropic-sdk-haskell-test
     import:           warnings, deps
     type:             exitcode-stdio-1.0
     main-is:          Main.hs
     other-modules:
-        Test.Messages
-        Test.Streaming
         Test.Types
     build-depends:
         anthropic-sdk-haskell,
-        hspec             >=2.11 && <2.12,
-        hspec-wai         >=0.11 && <0.12
+        hspec             >=2.10 && <3
     hs-source-dirs:   test
     default-language: Haskell2010
-    default-extensions: OverloadedStrings
+    default-extensions:
+        OverloadedStrings
 
 executable examples
     import:           warnings, deps
@@ -85,4 +82,5 @@ executable examples
     build-depends:    anthropic-sdk-haskell
     hs-source-dirs:   examples
     default-language: Haskell2010
-    default-extensions: OverloadedStrings
+    default-extensions:
+        OverloadedStrings
