@@ -23,18 +23,19 @@ parseChunk :: FromJSON a => BC.ByteString -> BC.ByteString -> (BC.ByteString, [a
 parseChunk leftover chunk =
     let buf    = normalize (leftover <> chunk)
         blocks = splitOnBlankLine buf
-    in case reverse blocks of
-        []           -> (BC.empty, [])
-        [incomplete] -> (incomplete, [])
-        (incomplete : complete) ->
-            (incomplete, mapMaybe decodeBlock (reverse complete))
+        allComplete = "\n\n" `BC.isSuffixOf` buf
+    in if allComplete
+        then (BC.empty, mapMaybe decodeBlock blocks)
+        else case reverse blocks of
+            []           -> (BC.empty, [])
+            (inc : rest) -> (inc, mapMaybe decodeBlock (reverse rest))
 
 -- ---------------------------------------------------------------------------
 -- Helpers
 
--- | Normalise CRLF to LF so the rest of the parser only sees @\n@.
+-- | Strip CR so the rest of the parser only sees @\n@ line endings.
 normalize :: BC.ByteString -> BC.ByteString
-normalize = BC.intercalate "\n" . BC.splitWith (== '\r')
+normalize = BC.filter (/= '\r')
 
 -- | Split on @\n\n@, keeping the separator consumed.
 splitOnBlankLine :: BC.ByteString -> [BC.ByteString]

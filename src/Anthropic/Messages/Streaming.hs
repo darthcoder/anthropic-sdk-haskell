@@ -63,7 +63,9 @@ drainEvents
 drainEvents br leftover onEvent = do
     chunk <- brRead br
     if BC.null chunk
-        then pure ()
+        then do
+            let (_, events) = parseChunk leftover "\n\n"
+            mapM_ onEvent events
         else do
             let (leftover', events) = parseChunk leftover chunk
             mapM_ onEvent events
