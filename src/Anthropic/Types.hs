@@ -24,6 +24,9 @@ module Anthropic.Types
     , assistantMessage
     , MessageRequest (..)
     , Message (..)
+      -- * Streaming
+    , ContentDelta (..)
+    , MessageStreamEvent (..)
     ) where
 
 import Data.Aeson
@@ -272,3 +275,42 @@ data Message = Message
 
 instance FromJSON Message where
     parseJSON = genericParseJSON (withPrefix 3)
+
+-- ---------------------------------------------------------------------------
+-- Streaming event types
+
+-- | Incremental content arriving during a stream.
+data ContentDelta
+    = TextDelta      Text   -- ^ A chunk of assistant text
+    | InputJsonDelta Text   -- ^ A partial JSON string for tool input
+    deriving (Show, Eq)
+
+instance FromJSON ContentDelta where
+    parseJSON = withObject "ContentDelta" $ \o -> do
+        t <- o .: "type" :: Parser Text
+        case t of
+            "text_delta"       -> TextDelta      <$> o .: "text"
+            "input_json_delta" -> InputJsonDelta <$> o .: "partial_json"
+            _                  -> fail $ "Unknown delta type: " <> show t
+
+-- | One SSE event emitted by the API during a streaming response.
+data MessageStreamEvent
+    = EvMessageStart  Message        -- ^ Initial message envelope (content still empty)
+    | EvContentDelta  Int ContentDelta -- ^ index, incremental content chunk
+    | EvMessageDelta  (Maybe StopReason) -- ^ Final stop reason
+    | EvMessageStop                  -- ^ Stream is complete
+    | EvPing                         -- ^ Server keep-alive
+    deriving (Show, Eq)
+
+instance FromJSON MessageStreamEvent where
+    parseJSON = withObject "MessageStreamEvent" $ \o -> do
+        t <- o .: "type" :: Parser Text
+        case t of
+            "message_start"       -> EvMessageStart <$> o .: "message"
+            "content_block_delta" -> EvContentDelta <$> o .: "index" <*> o .: "delta"
+            "message_delta"       -> do
+                delta <- o .: "delta"
+                EvMessageDelta <$> delta .:? "stop_reason"
+            "message_stop"        -> pure EvMessageStop
+            "ping"                -> pure EvPing
+            _                     -> pure EvPing   -- ignore unknown event types

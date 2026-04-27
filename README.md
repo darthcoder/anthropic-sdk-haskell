@@ -6,13 +6,13 @@ A Haskell client for the [Anthropic API](https://docs.anthropic.com/), written t
 
 ## Status
 
-Early development. Core Messages API is implemented and tested.
+Early development. Core Messages API and SSE streaming are implemented and tested.
 
 | Feature | Status |
 |---|---|
-| Messages | ✅ Done |
-| Streaming (SSE) | Planned |
-| Tool use | Planned |
+| Messages (sync) | ✅ Done |
+| Streaming (SSE) | ✅ Done |
+| Tool use types | ✅ Done (types only; agentic loop is caller responsibility) |
 | Batches | Planned |
 | Token counting | Planned |
 | Models | Planned |
@@ -30,7 +30,7 @@ src/Anthropic/
   Types.hs               -- Shared request/response types
   Error.hs               -- Typed API errors
   Messages.hs            -- POST /v1/messages
-  Messages/Streaming.hs  -- SSE streaming via Conduit
+  Messages/Streaming.hs  -- SSE streaming (callback-based, no conduit)
   Messages/Batches.hs    -- Async batch processing
   Models.hs              -- GET /v1/models
   Files.hs               -- File upload / retrieval
@@ -66,6 +66,8 @@ source-repository-package
 
 ## Quick Start
 
+### Blocking request
+
 ```haskell
 import Anthropic.Client
 import Anthropic.Messages
@@ -86,6 +88,29 @@ main = do
             }
     msg <- sendMessage client req
     mapM_ print (msgContent msg)
+```
+
+### Streaming
+
+```haskell
+import Anthropic.Messages.Streaming (streamMessage)
+import qualified Data.Text.IO as TIO
+
+main :: IO ()
+main = do
+    client <- fromEnv
+    streamMessage client req $ \ev -> case ev of
+        EvContentDelta _ (TextDelta t) -> TIO.putStr t
+        EvMessageStop                  -> putStrLn ""
+        _                              -> pure ()
+```
+
+### Running the example app
+
+```bash
+cabal run examples              # live API (needs ANTHROPIC_API_KEY)
+cabal run examples -- --stream  # live streaming, prints tokens as they arrive
+cabal run examples -- --mock    # replay test/fixtures/message_text.json (no key needed)
 ```
 
 ## Testing

@@ -13,78 +13,91 @@ cabal build                              # build library
 cabal test                               # run all tests
 cabal test --test-show-details=streaming # verbose test output
 cabal repl                               # GHCi with library loaded
-cabal run <executable>                   # run an example
+cabal run examples                       # run live example (needs ANTHROPIC_API_KEY)
+cabal run examples -- --stream           # streaming example
+cabal run examples -- --mock             # no API key needed; replays fixture
+make build / make test / make fixtures   # Makefile shortcuts
 hlint src/                               # lint
 ```
 
 To run a single test suite: `cabal test <test-suite-name>` (defined in `anthropic-sdk-haskell.cabal`).
 
-## Planned API Surface
+## GHC Version
 
-The following endpoints must be covered, matching the TypeScript SDK's module structure:
+**GHC 9.14.1** (`base ^>=4.22.0.0`). This matters because:
+- `req` library (3.13.4) requires `template-haskell <2.24`; GHC 9.14 ships 2.24 — **do not add req**.
+- `wreq` has the same issue.
+- Use plain `http-client` + `http-client-tls` throughout.
 
-| Module | Endpoint | Notes |
-|---|---|---|
-| `Messages` | `POST /v1/messages` | Core chat; supports SSE streaming |
-| `Messages.Streaming` | `POST /v1/messages` (stream=true) | SSE event loop |
-| `Messages.Batches` | `POST /v1/messages/batches` | Async batch (50% cost reduction) |
-| `TokenCounting` | `POST /v1/messages/count_tokens` | Pre-estimate token usage |
-| `Models` | `GET /v1/models` | List available Claude models |
-| `Files` | `POST /v1/files`, `GET /v1/files` | Upload/retrieve files |
+## Actual Dependencies
 
-## Dependency Choices
+```
+http-client, http-client-tls, retry, containers (<0.9), http-types,
+aeson, text, bytestring
+```
 
-| Concern | Package |
-|---|---|
-| HTTP client | `http-client` + `http-client-tls` |
-| Streaming (SSE) | `http-conduit` + `conduit` |
-| JSON | `aeson` with `DeriveGeneric` |
-| Async/concurrency | `async` |
-| Retry logic | `retry` |
+**Not used (despite being in earlier plans):** `conduit`, `http-conduit`, `async`, `transformers`, `mtl`, `req`, `wreq`, `scientific`, `time`, `unliftio-core`.
+
+Default extensions (in cabal): `OverloadedStrings`, `DeriveGeneric`, `LambdaCase`, `ScopedTypeVariables`, `NumericUnderscores`.
 
 ## Architecture
 
 ```
 src/
   Anthropic/
-    Client.hs          -- AnthropicClient config (API key, base URL, timeouts, manager)
-    Types.hs           -- Shared request/response types (Message, Content, Role, Model…)
-    Error.hs           -- Typed API errors (AnthropicError, ErrorCode variants)
-    Messages.hs        -- POST /v1/messages (non-streaming)
+    Client.hs          -- AnthropicClient, AnthropicConfig, mkClient, fromEnv
+    Types.hs           -- All request/response types + streaming event types
+    Error.hs           -- AnthropicError (Exception), ApiErrorBody
+    Messages.hs        -- sendMessage :: AnthropicClient -> MessageRequest -> IO Message
     Messages/
-      Streaming.hs     -- SSE streaming via Conduit; exposes a Source of events
-      Batches.hs       -- Batch submit + poll
-    Models.hs          -- GET /v1/models
-    Files.hs           -- File upload / retrieval
-    TokenCounting.hs   -- Token count helper
+      Streaming.hs     -- streamMessage :: AnthropicClient -> MessageRequest -> (MessageStreamEvent -> IO ()) -> IO ()
     Internal/
-      Http.hs          -- Low-level http-client helpers, retry, header injection
-      Sse.hs           -- SSE line parser (Conduit transformer)
+      Http.hs          -- postJson, mkHeaders, retrying-based retry, decodeApiError
+      Sse.hs           -- parseChunk :: ByteString -> ByteString -> (ByteString, [a])
+      Json.hs          -- aesonOptions (snake_case + omitNothingFields), withPrefix
 ```
-
-`AnthropicClient` carries a shared `Manager` (from `http-client`) and is the value passed to every API call. Construct with `mkClient :: AnthropicConfig -> IO AnthropicClient`.
 
 ## Key Implementation Patterns
 
-**Retry**: Wrap every HTTP call in `recovering` from the `retry` package — exponential backoff for HTTP 429 / 5xx (except 501).
+**JSON field naming**: Field names use short prefixes to avoid `DuplicateRecordFields`. The `withPrefix n` helper strips n chars then applies camelToSnake. E.g. `msgStopReason` with `withPrefix 3` → `"stop_reason"`. Prefixes: `msg` (Message), `req` (MessageRequest), `u` (Usage), `mp` (MessageParam), `tool` (Tool), `cp` (ContentBlockParam), `ac` (AnthropicConfig), `ae` (AnthropicError).
 
-**Streaming**: `POST /v1/messages` with `"stream": true` returns an SSE body. Parse with a Conduit pipeline: `responseBodySource .| sseParser .| messageEventSink`. Expose as `streamMessage :: AnthropicClient -> MessageRequest -> ConduitT () MessageStreamEvent IO ()`.
+**Retry**: Uses `retrying` (not `recovering`) from the `retry` package — avoids `MonadMask`/`Handler` complexity. Action returns `(Int, ByteString)`; `checkRetry` retries on 408, 409, 429, 5xx (except 501). Backoff: `exponentialBackoff 500_000` capped at 8s, `limitRetries (acMaxRetries cfg)`.
 
-**Tool use**: `Content` includes a `ToolUse` variant. The caller is responsible for executing tools and sending `tool_result` back; the SDK provides the types, not an agentic loop.
+**Streaming**: Callback-based — `streamMessage client req (MessageStreamEvent -> IO ())`. Uses `withResponse` + `brRead` from http-client for true chunk-by-chunk reading. `addStream` injects `"stream": true` via `KM.insert "stream" (Bool True)` on the aeson `Value`. **No conduit.**
 
-**Errors**: Decode error bodies into `AnthropicError { type_, error :: ApiError }`. Throw as Haskell exceptions (via `throwIO`) so callers can use `catch`/`try`.
+**SSE parsing**: Stateless `parseChunk leftover chunk → (newLeftover, [events])`. Splits on `\n\n`, extracts `data: ` lines, decodes JSON. Leftover bytes carried across chunks.
 
-**JSON**: Use `snake_case` field names matching the API. Configure aeson with `aesonOptions = defaultOptions { fieldLabelModifier = camelToSnake }` in `Internal/Json.hs`.
+**Error handling**: `AnthropicHttpError` / `AnthropicApiError` / `AnthropicParseError` all implement `Exception`. API error body shape: `{"type":"error","error":{...}}` — `decodeApiError` unwraps via `KM.lookup "error"`.
+
+**Tool use**: Types only. `ContentBlockParam` has `ToolUseParam` and `ToolResultParam` variants. Callers are responsible for the tool execution loop; the SDK just provides the types.
+
+## Testing Pattern
+
+Tests are fixture-based — **zero API calls**, runs in ~2ms.
+
+Fixtures in `test/fixtures/` are generated once via [grievous-mcp](https://pypi.org/project/grievous-mcp/):
+
+```bash
+pip install grievous-mcp
+export ANTHROPIC_API_KEY=sk-ant-...
+make fixtures          # runs test/fixtures/generate.py
+```
+
+Current fixtures: `message_text.json`, `message_tool_use.json`, `message_max_tokens.json`, `error_rate_limit.json`, `error_invalid_request.json`, `error_auth.json`.
+
+Test suite: `test/Test/Types.hs` — 11 tests covering decode of all fixtures + MessageRequest encode to snake_case.
 
 ## Feature Parity Checklist
 
-- [ ] `Messages` — basic request/response
-- [ ] `Messages.Streaming` — SSE event source
-- [ ] `Messages.ToolUse` — types for tool definitions and tool_result
-- [ ] `Messages.Batches` — submit, retrieve, list, cancel
-- [ ] `TokenCounting` — count_tokens endpoint
-- [ ] `Models` — list models
-- [ ] `Files` — upload, list, get, delete
-- [ ] Auto-retry with exponential backoff
-- [ ] Configurable timeouts
-- [ ] `ANTHROPIC_API_KEY` env-var fallback in `mkClient`
+- [x] `Messages` — blocking POST /v1/messages
+- [x] `Messages.Streaming` — SSE callback stream
+- [x] Tool use types (`ToolUseBlock`, `ToolResultParam`, `Tool`, `ToolChoice`)
+- [x] Auto-retry with exponential backoff
+- [x] Configurable timeouts
+- [x] `ANTHROPIC_API_KEY` env-var via `fromEnv`
+- [ ] `Messages.Batches` — POST /v1/messages/batches (submit + poll)
+- [ ] `TokenCounting` — POST /v1/messages/count_tokens
+- [ ] `Models` — GET /v1/models
+- [ ] `Files` — POST/GET /v1/files
+- [ ] Streaming test suite (SSE fixture via grievous-mcp)
+- [ ] Live integration test (guarded by env var)

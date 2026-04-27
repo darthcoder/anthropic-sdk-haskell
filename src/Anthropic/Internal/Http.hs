@@ -1,5 +1,6 @@
 module Anthropic.Internal.Http
     ( postJson
+    , mkHeaders
     ) where
 
 import Control.Exception          (throwIO)
