@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Haskell SDK for the Anthropic API, targeting feature parity with the [TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript). The API base URL is `https://api.anthropic.com`. Auth requires headers `x-api-key`, `anthropic-version: 2023-06-01`, and `content-type: application/json`.
 
+**When implementing features**: The TypeScript SDK is the authoritative reference for API surface, error handling, retry behaviour, and response shapes. Consult the TypeScript source directly when designing new modules or extending existing ones — this project prioritizes correctness over idiomatic Haskell when there's a conflict with the upstream spec.
+
 ## Build Commands
 
 ```bash
@@ -42,26 +44,22 @@ Default extensions (in cabal): `OverloadedStrings`, `DeriveGeneric`, `LambdaCase
 
 ## Architecture
 
-```
-src/
-  Anthropic/
-    Client.hs          -- AnthropicClient, AnthropicConfig, mkClient, fromEnv
-    Types.hs           -- All request/response types + streaming event types
-    Error.hs           -- AnthropicError (Exception), ApiErrorBody
-    Messages.hs        -- sendMessage :: AnthropicClient -> MessageRequest -> IO Message
-    Messages/
-      Streaming.hs     -- streamMessage :: AnthropicClient -> MessageRequest -> (MessageStreamEvent -> IO ()) -> IO ()
-      Batches.hs       -- stub (not yet implemented)
-    Models.hs          -- stub (not yet implemented)
-    Files.hs           -- stub (not yet implemented)
-    TokenCounting.hs   -- stub (not yet implemented)
-    Helpers/
-      Tool.hs          -- mkTool constructor, decodeToolInput :: FromJSON a => ContentBlock -> Either String a
-    Internal/
-      Http.hs          -- postJson, mkHeaders, retrying-based retry, decodeApiError
-      Sse.hs           -- parseChunk :: ByteString -> ByteString -> (ByteString, [a])
-      Json.hs          -- aesonOptions (snake_case + omitNothingFields), withPrefix
-```
+Public API modules (all in `src/Anthropic/`):
+- **Client.hs** — `AnthropicClient`, `AnthropicConfig`, `mkClient`, `fromEnv`
+- **Types.hs** — All request/response types + streaming event types
+- **Error.hs** — `AnthropicError` (Exception), `ApiErrorBody`
+- **Messages.hs** — `sendMessage :: AnthropicClient -> MessageRequest -> IO Message`
+- **Messages/Streaming.hs** — `streamMessage` (callback-based SSE streaming)
+- **Messages/Batches.hs** — stub (not yet implemented)
+- **Models.hs** — `listModels`, `getModel` (GET /v1/models{/:id})
+- **Files.hs** — stub (not yet implemented)
+- **TokenCounting.hs** — stub (not yet implemented)
+- **Helpers/Tool.hs** — `mkTool` constructor, `decodeToolInput` helper
+
+Internal modules (not part of public API):
+- **Internal/Http.hs** — HTTP layer: `postJson`, `getJson`, `mkHeaders`, retry logic
+- **Internal/Sse.hs** — SSE parser: `parseChunk` (stateless, carries leftover across chunks)
+- **Internal/Json.hs** — JSON helpers: `aesonOptions` (snake_case + omitNothingFields), `withPrefix`
 
 ## Key Implementation Patterns
 
@@ -79,19 +77,24 @@ src/
 
 ## Testing Pattern
 
-Tests are fixture-based — **zero API calls**, runs in ~2ms.
+Tests are fixture-based — **zero API calls**, runs in ~2ms. Run with:
+
+```bash
+make test                          # all tests with streaming output
+cabal test anthropic-sdk-haskell-test  # without Makefile shortcut
+```
 
 Fixtures in `test/fixtures/` are generated once via [grievous-mcp](https://pypi.org/project/grievous-mcp/):
 
 ```bash
 pip install grievous-mcp
 export ANTHROPIC_API_KEY=sk-ant-...
-make fixtures          # runs test/fixtures/generate.py
+make fixtures          # runs test/fixtures/generate.py, regenerates all JSON fixtures
 ```
 
 Current fixtures: `message_text.json`, `message_tool_use.json`, `message_max_tokens.json`, `error_rate_limit.json`, `error_invalid_request.json`, `error_auth.json`.
 
-Test suites: `test/Test/Types.hs` (14 tests: decode all fixtures + MessageRequest encode + Models API decode). `test/Test/Messages.hs` and `test/Test/Streaming.hs` are stubs.
+Test structure: `test/Test/Types.hs` covers all fixture decode cases + MessageRequest encode + Models API decode. `test/Test/Messages.hs` and `test/Test/Streaming.hs` are stubs.
 
 ## Feature Parity Checklist
 
@@ -102,7 +105,7 @@ Test suites: `test/Test/Types.hs` (14 tests: decode all fixtures + MessageReques
 - [x] Configurable timeouts
 - [x] `ANTHROPIC_API_KEY` env-var via `fromEnv`
 - [ ] `Messages.Batches` — POST /v1/messages/batches (submit + poll)
-- [ ] `TokenCounting` — POST /v1/messages/count_tokens
+- [x] `TokenCounting` — POST /v1/messages/count_tokens (`countTokens`)
 - [x] `Models` — GET /v1/models (`listModels`, `getModel`)
 - [ ] `Files` — POST/GET /v1/files
 - [ ] Streaming test suite (SSE fixture via grievous-mcp)

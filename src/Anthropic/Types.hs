@@ -26,6 +26,9 @@ module Anthropic.Types
     , assistantMessage
     , MessageRequest (..)
     , Message (..)
+      -- * Token Counting
+    , TokenCountRequest (..)
+    , TokenCount (..)
       -- * Streaming
     , ContentDelta (..)
     , MessageStreamEvent (..)
@@ -301,6 +304,25 @@ data Message = Message
 
 instance FromJSON Message where
     parseJSON = genericParseJSON (withPrefix 3)
+
+-- ---------------------------------------------------------------------------
+-- Token Counting
+
+data TokenCountRequest = TokenCountRequest
+    { tcrModel    :: Model
+    , tcrMessages :: [MessageParam]
+    , tcrSystem   :: Maybe MessageContent
+    } deriving (Show, Eq, Generic)
+
+instance ToJSON TokenCountRequest where
+    toJSON = genericToJSON (withPrefix 3)
+
+data TokenCount = TokenCount
+    { tcInputTokens :: Int
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON TokenCount where
+    parseJSON = genericParseJSON (withPrefix 2)
 
 -- ---------------------------------------------------------------------------
 -- Streaming event types

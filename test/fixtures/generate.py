@@ -82,6 +82,10 @@ FIXTURES = {
         "display_name='Claude Sonnet 4.5', "
         "created_at='2025-02-19T00:00:00Z'"
     ),
+    "token_count": (
+        "an Anthropic API response for POST /v1/messages/count_tokens with fields: "
+        "input_tokens (integer e.g. 42)"
+    ),
 }
 
 

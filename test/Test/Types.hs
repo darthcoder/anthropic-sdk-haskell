@@ -157,3 +157,23 @@ spec = do
             miId          mi `shouldBe` "claude-sonnet-4-5"
             miDisplayName mi `shouldBe` "Claude Sonnet 4.5"
             miCreatedAt   mi `shouldBe` "2025-02-19T00:00:00Z"
+
+    describe "TokenCounting API" $ do
+
+        it "decodes a token count response" $ do
+            bs  <- loadFixture "token_count"
+            tc  <- decodeOrFail bs :: IO TokenCount
+            tcInputTokens tc `shouldBe` 42
+
+        it "encodes a token count request" $ do
+            let req = TokenCountRequest
+                    { tcrModel    = claude3_5Sonnet
+                    , tcrMessages = [userMessage "Hello"]
+                    , tcrSystem   = Nothing
+                    }
+            case encode req of
+                bs | Just (Object o) <- decode bs -> do
+                    KM.member "model"    o `shouldBe` True
+                    KM.member "messages" o `shouldBe` True
+                    KM.member "system"   o `shouldBe` False
+                _ -> expectationFailure "Expected a JSON object"
