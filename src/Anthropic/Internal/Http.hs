@@ -1,5 +1,6 @@
 module Anthropic.Internal.Http
     ( postJson
+    , getJson
     , mkHeaders
     ) where
 
@@ -35,6 +36,31 @@ postJson client apiPath body = do
             { method         = "POST"
             , requestBody    = RequestBodyLBS (encode body)
             , requestHeaders = mkHeaders cfg
+            , responseTimeout = responseTimeoutMicro (acTimeoutMs cfg * 1_000)
+            }
+    (status, rb) <- retrying (retryPolicy cfg) checkRetry $ \_ -> do
+        resp <- httpLbs req mgr
+        pure (statusCode (responseStatus resp), responseBody resp)
+    if status >= 200 && status < 300
+        then case eitherDecode rb of
+                 Right v  -> pure v
+                 Left err -> throwIO (AnthropicParseError rb err)
+        else case decodeApiError rb of
+                 Just e  -> throwIO (AnthropicApiError status e)
+                 Nothing -> throwIO (AnthropicHttpError status rb)
+
+getJson
+    :: FromJSON resp
+    => AnthropicClient
+    -> String           -- ^ path, e.g. "/v1/models"
+    -> IO resp
+getJson client apiPath = do
+    let cfg = clientConfig client
+        mgr = clientManager client
+    baseReq <- parseUrlThrow (T.unpack (acBaseUrl cfg) <> apiPath)
+    let req = baseReq
+            { method          = "GET"
+            , requestHeaders  = mkHeaders cfg
             , responseTimeout = responseTimeoutMicro (acTimeoutMs cfg * 1_000)
             }
     (status, rb) <- retrying (retryPolicy cfg) checkRetry $ \_ -> do

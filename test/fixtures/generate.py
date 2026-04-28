@@ -67,6 +67,21 @@ FIXTURES = {
         "type='error', "
         "error={type:'authentication_error', message:'Invalid API key provided.'}"
     ),
+    "models_list": (
+        "an Anthropic API response for GET /v1/models with fields: "
+        "data (array of model objects, each with: "
+        "type='model', id (string e.g. 'claude-opus-4-5'), "
+        "display_name (string e.g. 'Claude Opus 4.5'), "
+        "created_at (ISO 8601 string e.g. '2025-02-19T00:00:00Z')), "
+        "has_more=false, first_id='claude-opus-4-5', last_id='claude-haiku-4-5'"
+        " — include 3 model entries"
+    ),
+    "model_get": (
+        "an Anthropic API response for GET /v1/models/{model_id} — a single model object with fields: "
+        "type='model', id='claude-sonnet-4-5', "
+        "display_name='Claude Sonnet 4.5', "
+        "created_at='2025-02-19T00:00:00Z'"
+    ),
 }
 
 

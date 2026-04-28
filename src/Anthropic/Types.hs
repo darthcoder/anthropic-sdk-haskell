@@ -4,6 +4,8 @@ module Anthropic.Types
     , claude3Opus, claude3Sonnet, claude3Haiku
     , claude3_5Sonnet, claude3_5Haiku
     , claudeOpus4, claudeSonnet4, claudeHaiku4
+    , ModelInfo (..)
+    , ModelList (..)
       -- * Primitives
     , Role (..)
     , StopReason (..)
@@ -59,6 +61,30 @@ claudeOpus4, claudeSonnet4, claudeHaiku4 :: Model
 claudeOpus4   = Model "claude-opus-4-7"
 claudeSonnet4 = Model "claude-sonnet-4-6"
 claudeHaiku4  = Model "claude-haiku-4-5-20251001"
+
+-- | Metadata for a single model returned by the API.
+-- Field prefix: @mi@
+data ModelInfo = ModelInfo
+    { miType        :: Text   -- ^ always "model"
+    , miId          :: Text
+    , miDisplayName :: Text
+    , miCreatedAt   :: Text   -- ^ ISO 8601 timestamp
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON ModelInfo where
+    parseJSON = genericParseJSON (withPrefix 2)
+
+-- | Paginated list of models returned by GET /v1/models.
+-- Field prefix: @ml@
+data ModelList = ModelList
+    { mlData    :: [ModelInfo]
+    , mlHasMore :: Bool
+    , mlFirstId :: Maybe Text
+    , mlLastId  :: Maybe Text
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON ModelList where
+    parseJSON = genericParseJSON (withPrefix 2)
 
 -- ---------------------------------------------------------------------------
 -- Role

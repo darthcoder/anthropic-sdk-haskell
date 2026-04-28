@@ -132,3 +132,28 @@ spec = do
                    , Just (String m) <- KM.lookup "model" o ->
                        m `shouldBe` "claude-3-5-sonnet-20241022"
                 _ -> expectationFailure "Expected model to be a string"
+
+    describe "Models API decoding" $ do
+
+        it "decodes a model list response" $ do
+            bs  <- loadFixture "models_list"
+            ml  <- decodeOrFail bs :: IO ModelList
+            length (mlData ml) `shouldBe` 3
+            mlHasMore ml       `shouldBe` False
+            mlFirstId ml       `shouldBe` Just "claude-opus-4-5"
+            mlLastId  ml       `shouldBe` Just "claude-haiku-4-5"
+
+        it "decodes ModelInfo fields correctly" $ do
+            bs  <- loadFixture "models_list"
+            ml  <- decodeOrFail bs :: IO ModelList
+            let mi = case mlData ml of { m:_ -> m; [] -> error "empty" }
+            miId          mi `shouldBe` "claude-opus-4-5"
+            miDisplayName mi `shouldBe` "Claude Opus 4.5"
+            miType        mi `shouldBe` "model"
+
+        it "decodes a single model response" $ do
+            bs <- loadFixture "model_get"
+            mi <- decodeOrFail bs :: IO ModelInfo
+            miId          mi `shouldBe` "claude-sonnet-4-5"
+            miDisplayName mi `shouldBe` "Claude Sonnet 4.5"
+            miCreatedAt   mi `shouldBe` "2025-02-19T00:00:00Z"

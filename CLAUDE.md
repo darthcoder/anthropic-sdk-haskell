@@ -65,7 +65,7 @@ src/
 
 ## Key Implementation Patterns
 
-**JSON field naming**: Field names use short prefixes to avoid `DuplicateRecordFields`. The `withPrefix n` helper strips n chars then applies camelToSnake. E.g. `msgStopReason` with `withPrefix 3` → `"stop_reason"`. Prefixes: `msg` (Message), `req` (MessageRequest), `u` (Usage), `mp` (MessageParam), `tool` (Tool), `cp` (ContentBlockParam), `ac` (AnthropicConfig), `ae` (AnthropicError).
+**JSON field naming**: Field names use short prefixes to avoid `DuplicateRecordFields`. The `withPrefix n` helper strips n chars then applies camelToSnake. E.g. `msgStopReason` with `withPrefix 3` → `"stop_reason"`. Prefixes: `msg` (Message), `req` (MessageRequest), `u` (Usage), `mp` (MessageParam), `tool` (Tool), `cp` (ContentBlockParam), `ac` (AnthropicConfig), `ae` (AnthropicError), `mi` (ModelInfo), `ml` (ModelList).
 
 **Retry**: Uses `retrying` (not `recovering`) from the `retry` package — avoids `MonadMask`/`Handler` complexity. Action returns `(Int, ByteString)`; `checkRetry` retries on 408, 409, 429, 5xx (except 501). Backoff: `exponentialBackoff 500_000` capped at 8s, `limitRetries (acMaxRetries cfg)`.
 
@@ -91,7 +91,7 @@ make fixtures          # runs test/fixtures/generate.py
 
 Current fixtures: `message_text.json`, `message_tool_use.json`, `message_max_tokens.json`, `error_rate_limit.json`, `error_invalid_request.json`, `error_auth.json`.
 
-Test suites: `test/Test/Types.hs` (11 tests: decode all fixtures + MessageRequest encode to snake_case). `test/Test/Messages.hs` and `test/Test/Streaming.hs` are stubs.
+Test suites: `test/Test/Types.hs` (14 tests: decode all fixtures + MessageRequest encode + Models API decode). `test/Test/Messages.hs` and `test/Test/Streaming.hs` are stubs.
 
 ## Feature Parity Checklist
 
@@ -103,7 +103,7 @@ Test suites: `test/Test/Types.hs` (11 tests: decode all fixtures + MessageReques
 - [x] `ANTHROPIC_API_KEY` env-var via `fromEnv`
 - [ ] `Messages.Batches` — POST /v1/messages/batches (submit + poll)
 - [ ] `TokenCounting` — POST /v1/messages/count_tokens
-- [ ] `Models` — GET /v1/models
+- [x] `Models` — GET /v1/models (`listModels`, `getModel`)
 - [ ] `Files` — POST/GET /v1/files
 - [ ] Streaming test suite (SSE fixture via grievous-mcp)
 - [ ] Live integration test (guarded by env var)
