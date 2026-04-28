@@ -51,6 +51,12 @@ src/
     Messages.hs        -- sendMessage :: AnthropicClient -> MessageRequest -> IO Message
     Messages/
       Streaming.hs     -- streamMessage :: AnthropicClient -> MessageRequest -> (MessageStreamEvent -> IO ()) -> IO ()
+      Batches.hs       -- stub (not yet implemented)
+    Models.hs          -- stub (not yet implemented)
+    Files.hs           -- stub (not yet implemented)
+    TokenCounting.hs   -- stub (not yet implemented)
+    Helpers/
+      Tool.hs          -- mkTool constructor, decodeToolInput :: FromJSON a => ContentBlock -> Either String a
     Internal/
       Http.hs          -- postJson, mkHeaders, retrying-based retry, decodeApiError
       Sse.hs           -- parseChunk :: ByteString -> ByteString -> (ByteString, [a])
@@ -69,7 +75,7 @@ src/
 
 **Error handling**: `AnthropicHttpError` / `AnthropicApiError` / `AnthropicParseError` all implement `Exception`. API error body shape: `{"type":"error","error":{...}}` — `decodeApiError` unwraps via `KM.lookup "error"`.
 
-**Tool use**: Types only. `ContentBlockParam` has `ToolUseParam` and `ToolResultParam` variants. Callers are responsible for the tool execution loop; the SDK just provides the types.
+**Tool use**: Types only. `ContentBlockParam` has `ToolUseParam` and `ToolResultParam` variants. Callers are responsible for the tool execution loop; the SDK just provides the types and `Helpers.Tool` (`mkTool`, `decodeToolInput`) for convenience.
 
 ## Testing Pattern
 
@@ -85,7 +91,7 @@ make fixtures          # runs test/fixtures/generate.py
 
 Current fixtures: `message_text.json`, `message_tool_use.json`, `message_max_tokens.json`, `error_rate_limit.json`, `error_invalid_request.json`, `error_auth.json`.
 
-Test suite: `test/Test/Types.hs` — 11 tests covering decode of all fixtures + MessageRequest encode to snake_case.
+Test suites: `test/Test/Types.hs` (11 tests: decode all fixtures + MessageRequest encode to snake_case). `test/Test/Messages.hs` and `test/Test/Streaming.hs` are stubs.
 
 ## Feature Parity Checklist
 
